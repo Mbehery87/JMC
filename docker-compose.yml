@@ -1,0 +1,38 @@
+
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: jmp_db
+      MYSQL_USER: jmp_user
+      MYSQL_PASSWORD: userpass123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 10
+
+  backend:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      DB_HOST: mysql
+      DB_USER: jmp_user
+      DB_PASS: userpass123
+      DB_NAME: jmp_db
+      JWT_SECRET: secret
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    image: nginx:alpine
+    ports: ["80:80"]
+    volumes: ["./frontend:/usr/share/nginx/html"]
+    depends_on: [backend]
+
+volumes:
+  mysql_data:

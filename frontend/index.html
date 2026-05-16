@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>JMP Digital System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body class="bg-gray-100">
+<div id="app" class="p-6">
+  <h1 class="text-3xl font-bold mb-4">JMP Digital System</h1>
+  <div class="grid grid-cols-3 gap-4">
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="font-bold mb-2">Dashboard</h2>
+      <div id="trips"></div>
+    </div>
+    <div class="bg-white p-4 rounded shadow col-span-2">
+      <h2 class="font-bold mb-2">Trip Timeline</h2>
+      <div id="timeline" class="space-y-2 mb-4"></div>
+      <div id="control-room" class="hidden">
+        <textarea id="note" class="w-full border p-2 mb-2" placeholder="أضف تعليق..."></textarea>
+        <button onclick="addNote()" class="bg-blue-600 text-white px-4 py-2 rounded">إضافة Note</button>
+        <button onclick="openNotify()" class="bg-orange-600 text-white px-4 py-2 rounded mr-2">إرسال تنبيه</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+let currentTripId = null;
+let token = 'demo'; // Replace with real JWT after login
+
+async function loadTrips() {
+  const res = await fetch(`${API}/api/trips`, {headers: {Authorization: `Bearer ${token}`}});
+  const trips = await res.json();
+  document.getElementById('trips').innerHTML = trips.map(t => 
+    `<div class="p-2 border-b cursor-pointer" onclick="openTrip(${t.id})">JMP-${t.id} - ${t.status}</div>`
+  ).join('');
+}
+
+async function openTrip(id) {
+  currentTripId = id;
+  const res = await fetch(`${API}/api/trips/${id}/timeline`, {headers: {Authorization: `Bearer ${token}`}});
+  const logs = await res.json();
+  document.getElementById('timeline').innerHTML = logs.map(l => 
+    `<div class="text-sm"><b>${l.user}</b> - ${l.time}: ${l.message}</div>`
+  ).join('');
+  document.getElementById('control-room').classList.remove('hidden');
+}
+
+async function addNote() {
+  const message = document.getElementById('note').value;
+  await fetch(`${API}/api/trips/${currentTripId}/comment`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', Authorization: `Bearer ${token}`},
+    body: JSON.stringify({message})
+  });
+  document.getElementById('note').value = '';
+  openTrip(currentTripId);
+}
+
+function openNotify() {
+  const to = prompt('إرسال إلى: creator / approver / both');
+  const message = prompt('نص التنبيه:');
+  fetch(`${API}/api/trips/${currentTripId}/notify`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', Authorization: `Bearer ${token}`},
+    body: JSON.stringify({to, message})
+  }).then(() => openTrip(currentTripId));
+}
+
+loadTrips();
+</script>
+</body>
+</html>
